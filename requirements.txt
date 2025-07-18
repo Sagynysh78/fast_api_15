@@ -14,3 +14,4 @@ pytest-asyncio
 aiosqlite
 celery
 redis
+psycopg2-binary

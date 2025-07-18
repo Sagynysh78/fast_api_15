@@ -1,57 +1,29 @@
-import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 from main import app, get_session
-app.router.on_startup.clear()
 
-# Определяем URL тестовой БД в зависимости от окружения
-TEST_DATABASE_URL = os.getenv(
-    "DATABASE_URL", 
-    "sqlite+aiosqlite:///./test.db"
-)
+TEST_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
-# Создаем отдельный движок для тестовой БД
-engine_test = create_async_engine(TEST_DATABASE_URL, echo=True)
-AsyncSessionTest = sessionmaker(
-    bind=engine_test,
-    class_=AsyncSession,
-    expire_on_commit=False,
-)
+# Синхронный движок для тестов с TestClient
+engine_test = create_engine(TEST_DATABASE_URL)
+SessionTest = sessionmaker(bind=engine_test, autocommit=False, autoflush=False)
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
-    # Создание тестовой БД и таблиц
-    import asyncio
-    async def create():
-        async with engine_test.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.create_all)
-    asyncio.run(create())
+    SQLModel.metadata.create_all(engine_test)
     yield
-    # Очистка после тестов
-    async def drop():
-        async with engine_test.begin() as conn:
-            await conn.run_sync(SQLModel.metadata.drop_all)
-    asyncio.run(drop())
+    SQLModel.metadata.drop_all(engine_test)
 
 @pytest.fixture()
 def client():
-    # Создаем отдельную сессию для каждого теста
-    session = AsyncSessionTest()
-    
-    async def override_get_session():
-        try:
+    def override_get_session():
+        with SessionTest() as session:
             yield session
-        finally:
-            await session.close()
-    
     app.dependency_overrides[get_session] = override_get_session
     with TestClient(app) as c:
         yield c
-    
-    # Очищаем override после теста
     app.dependency_overrides.clear() 
