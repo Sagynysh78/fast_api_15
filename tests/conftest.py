@@ -9,9 +9,14 @@ from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 from main import app, get_session
 
-TEST_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
+RAW_DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./test.db")
 
-# Синхронный движок для тестов с TestClient
+# Если используется PostgreSQL, явно указываем sync драйвер psycopg2
+if RAW_DATABASE_URL.startswith("postgresql://"):
+    TEST_DATABASE_URL = RAW_DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+else:
+    TEST_DATABASE_URL = RAW_DATABASE_URL
+
 engine_test = create_engine(TEST_DATABASE_URL)
 SessionTest = sessionmaker(bind=engine_test, autocommit=False, autoflush=False)
 
