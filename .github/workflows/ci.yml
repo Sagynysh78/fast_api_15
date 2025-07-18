@@ -57,15 +57,20 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run tests
+    - name: Set sync driver for SQLModel tests
+      run: |
+        if [[ "$DATABASE_URL" == postgresql://* ]]; then
+          export DATABASE_URL="${DATABASE_URL/postgresql:\/\//postgresql+psycopg2://}"
+          echo "DATABASE_URL=$DATABASE_URL" >> $GITHUB_ENV
+        fi
+    - name: Run Tests
       env:
-        DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_db
+        DATABASE_URL: ${{ env.DATABASE_URL }}
         REDIS_URL: redis://localhost:6379
         SECRET_KEY: test-secret-key-for-ci
         ALGORITHM: HS256
         ACCESS_TOKEN_EXPIRE_MINUTES: 30
-      run: |
-        pytest tests/ -v --tb=short
+      run: pytest tests/ -v --tb=short
 
     - name: Build Docker image
       run: |
