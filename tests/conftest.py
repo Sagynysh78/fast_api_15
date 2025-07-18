@@ -40,9 +40,18 @@ def setup_test_db():
 
 @pytest.fixture()
 def client():
+    # Создаем отдельную сессию для каждого теста
+    session = AsyncSessionTest()
+    
     async def override_get_session():
-        async with AsyncSessionTest() as session:
+        try:
             yield session
+        finally:
+            await session.close()
+    
     app.dependency_overrides[get_session] = override_get_session
     with TestClient(app) as c:
-        yield c 
+        yield c
+    
+    # Очищаем override после теста
+    app.dependency_overrides.clear() 

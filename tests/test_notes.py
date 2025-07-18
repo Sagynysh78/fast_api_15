@@ -1,21 +1,18 @@
 import pytest
 
-@pytest.mark.asyncio
 def register_and_login(client, username, password):
     client.post("/register", data={"username": username, "password": password})
     resp = client.post("/login", data={"username": username, "password": password})
     return resp.json()["access_token"]
 
-@pytest.mark.asyncio
-async def test_create_note(client):
+def test_create_note(client):
     token = register_and_login(client, "noteuser", "notepass")
     headers = {"Authorization": f"Bearer {token}"}
     response = client.post("/notes/", json={"text": "Test note"}, headers=headers)
     assert response.status_code == 200
     assert response.json()["text"] == "Test note"
 
-@pytest.mark.asyncio
-async def test_get_notes_only_own(client):
+def test_get_notes_only_own(client):
     token1 = register_and_login(client, "user1", "pass1")
     token2 = register_and_login(client, "user2", "pass2")
     headers1 = {"Authorization": f"Bearer {token1}"}
@@ -37,8 +34,7 @@ async def test_get_notes_only_own(client):
     assert any(note["text"] == "Note2" for note in notes2)
     assert all(note["text"] != "Note1" for note in notes2)
 
-@pytest.mark.asyncio
-async def test_delete_own_and_foreign_note(client):
+def test_delete_own_and_foreign_note(client):
     token1 = register_and_login(client, "deluser1", "delpass1")
     token2 = register_and_login(client, "deluser2", "delpass2")
     headers1 = {"Authorization": f"Bearer {token1}"}
